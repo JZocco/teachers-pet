@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher's Pet — Classroom Dashboard</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">🐾</div>
+      <h1>Teacher's Pet <span>Classroom Dashboard</span></h1>
+    </div>
+    <div class="header-right">
+      <div class="status-badge disconnected" id="statusBadge">
+        <div class="dot"></div>
+        <span id="statusText">Disconnected</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connect screen (shown before any ball is connected) -->
+  <div class="connect-section" id="connectScreen">
+    <h2>Connect to Stress Balls</h2>
+    <p>Open this page in <strong>Chrome</strong> on a laptop with Bluetooth. Make sure the prototypes are powered on and within range.</p>
+    <button class="btn-connect" id="btnConnect" onclick="connectBLE()">Connect via Bluetooth</button>
+    <br>
+    <button class="btn-secondary" onclick="startDemo()" style="margin-top: 24px;">Run demo with 6 students</button>
+  </div>
+
+  <!-- Main dashboard (hidden until connected or demo starts) -->
+  <div class="dashboard" id="dashboard">
+
+    <div class="demo-banner" id="demoBanner" style="display: none;">
+      <span class="demo-tag">Demo</span>
+      Simulated classroom — 6 balls generating squeeze data automatically.
+    </div>
+
+    <!-- Tab navigation -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('classroom')">Classroom</button>
+      <button class="tab-btn"        onclick="switchTab('live')">Live View</button>
+      <button class="tab-btn"        onclick="switchTab('day')">Day View</button>
+    </div>
+
+    <!-- Classroom tab -->
+    <div class="tab-panel active" id="panelClassroom">
+      <div class="class-summary">
+        <div class="cs-card">
+          <div class="cs-label">Connected Balls</div>
+          <div class="cs-value" id="csConnected">0</div>
+        </div>
+        <div class="cs-card">
+          <div class="cs-label">Class Squeezes</div>
+          <div class="cs-value" id="csSqueezes">0</div>
+        </div>
+        <div class="cs-card">
+          <div class="cs-label">Most Active</div>
+          <div class="cs-value" id="csMostActive" style="font-size: 18px;">—</div>
+          <div class="cs-sub" id="csMostActiveSub"></div>
+        </div>
+        <div class="cs-card">
+          <div class="cs-label">Class Avg Intensity</div>
+          <div class="cs-value" id="csAvgIntensity" style="font-size: 18px;">—</div>
+        </div>
+      </div>
+      <div class="ball-list" id="ballList"></div>
+    </div>
+
+    <!-- Live view tab -->
+    <div class="tab-panel" id="panelLive">
+      <div class="selected-label" id="liveSelectedLabel">Select a student from the Classroom tab.</div>
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="label">Live Pressure</div>
+          <div class="value" id="metricPressure">0</div>
+          <div class="sub">ADC (0–2000)</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Total Squeezes</div>
+          <div class="value" id="metricSqueezes">0</div>
+          <div class="sub">This session</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Avg Intensity</div>
+          <div class="value" id="metricAvg">—</div>
+          <div class="sub">Peak pressure avg</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Session Time</div>
+          <div class="value" id="metricTime">0:00</div>
+          <div class="sub">Since connected</div>
+        </div>
+      </div>
+
+      <div class="gauge-area">
+        <!-- Circular pressure gauge -->
+        <div class="gauge-card">
+          <div class="label">Pressure</div>
+          <div class="gauge-ring">
+            <svg width="150" height="150" viewBox="0 0 150 150">
+              <circle cx="75" cy="75" r="62" fill="none" stroke="#EDEBE8" stroke-width="10"/>
+              <circle cx="75" cy="75" r="62" fill="none" stroke="var(--teal)" stroke-width="10"
+                      stroke-linecap="round" stroke-dasharray="389.6" stroke-dashoffset="389.6" id="gaugeArc"/>
+            </svg>
+            <div class="gauge-center">
+              <div class="gauge-value" id="gaugeVal">0</div>
+              <div class="gauge-pct"   id="gaugePct">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scrolling timeline chart -->
+        <div class="timeline-card">
+          <div class="card-header">
+            <div class="label">30-Second Pressure Timeline</div>
+            <span id="timelineRange">—</span>
+          </div>
+          <div class="timeline-wrap">
+            <canvas id="liveCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Squeeze event log -->
+      <div class="log-card">
+        <div class="label">Squeeze Event Log</div>
+        <div class="log-entries" id="logEntries">
+          <div style="color: var(--text-muted); font-size: 13px; padding: 20px 0; text-align: center;">
+            Waiting for first squeeze...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day view tab -->
+    <div class="tab-panel" id="panelDay">
+      <div class="selected-label" id="daySelectedLabel">Select a student from the Classroom tab to view daily data.</div>
+      <div class="day-grid">
+        <div class="day-metric">
+          <div class="label">Total Squeezes Today</div>
+          <div class="value" id="dayTotal">0</div>
+          <div class="sub">Across all periods</div>
+        </div>
+        <div class="day-metric">
+          <div class="label">Peak Period</div>
+          <div class="value" id="dayPeak">—</div>
+          <div class="sub" id="dayPeakSub">Highest squeeze count</div>
+        </div>
+      </div>
+
+      <div class="period-chart">
+        <div class="label">Squeeze Activity by Period</div>
+        <div class="day-timeline-wrap">
+          <canvas id="dayCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="label">Session Summary</div>
+        <div class="summary-text" id="summaryText">Waiting for squeeze data...</div>
+      </div>
+    </div>
+
+    <button class="btn-secondary" onclick="disconnectAll()" style="margin-top: 20px;">Disconnect All</button>
+  </div><!-- end .dashboard -->
+
+</div><!-- end .container -->
+
+<!-- JavaScript -->
+<script src="app.js"></script>
+</body>
+</html>
